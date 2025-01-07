@@ -9,9 +9,11 @@ export const createNotification = async (
   type: "deadline" | "overdue" | "status" | "completed",
   taskId: string
 ) => {
-  // Get the actual user ID from the auth session
+  console.log("Creating notification:", { userId, title, message, type, taskId });
+  
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) {
+    console.error("No authenticated session found");
     throw new Error("No authenticated session found");
   }
 
@@ -19,11 +21,12 @@ export const createNotification = async (
     .from("notifications")
     .insert([
       {
-        user_id: session.user.id, // Use the actual UUID from the session
+        user_id: session.user.id,
         title,
         message,
         type,
         task_id: taskId,
+        status: 'unread'
       },
     ]);
 
@@ -34,18 +37,19 @@ export const createNotification = async (
 };
 
 export const checkTaskDeadlines = async (task: Task) => {
+  console.log("Checking deadlines for task:", task);
+  
   const deadlineDate = parseISO(task.deadline);
   const twoDaysFromNow = addDays(new Date(), 2);
   
-  // Get the actual user ID from the auth session
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) {
+    console.error("No authenticated session found");
     throw new Error("No authenticated session found");
   }
 
   // Check if task is due within 2 days and not completed
   if (deadlineDate <= twoDaysFromNow && task.status !== "completed") {
-    // Notify using the actual user ID
     await createNotification(
       session.user.id,
       "Task Due Soon",
@@ -57,7 +61,6 @@ export const checkTaskDeadlines = async (task: Task) => {
 
   // Check if task is overdue
   if (isPast(deadlineDate) && task.status !== "completed") {
-    // Notify using the actual user ID
     await createNotification(
       session.user.id,
       "Task Overdue",
@@ -69,12 +72,14 @@ export const checkTaskDeadlines = async (task: Task) => {
 };
 
 export const handleTaskStatusChange = async (task: Task) => {
+  console.log("Handling status change for task:", task);
+  
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) {
+    console.error("No authenticated session found");
     throw new Error("No authenticated session found");
   }
 
-  // Notify using the actual user ID
   await createNotification(
     session.user.id,
     "Task Status Updated",
